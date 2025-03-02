@@ -37,29 +37,40 @@ describe("LingolinCreditNFT", function () {
     expect(await lingolinCreditNFT.metadataURI()).to.equal(sampleMetadataURI);
   });
 
-  it("Should verify tokens cannot be burned or transferred to zero address", async function () {
+  it("Should verify tokens can be burned by owner", async function () {
     // Mint a token to the user for testing
     await lingolinCreditNFT.connect(owner).mintNFT(user.address);
     
     // Check user has the token
     expect(await lingolinCreditNFT.balanceOf(user.address)).to.equal(1);
-    
-    // Verify that the contract interface doesn't include burn function
-    const contractInstance = lingolinCreditNFT.connect(user);
-    const hasBurnFunction = 'burn' in contractInstance.interface;
-    expect(hasBurnFunction).to.be.false;
 
     // Get the token ID (should be 0 for the first mint)
     const tokenId = 0;
     
-    // Try to call transferFrom to zero address (which would effectively burn)
-    // This should fail as ERC721 doesn't allow transfers to zero address
+    // User should be able to burn their own token
+    await lingolinCreditNFT.connect(user).burn(tokenId);
     
+    // Verify token no longer exists
     await expect(
-      lingolinCreditNFT.connect(user).transferFrom(user.address, hre.ethers.ZeroAddress, tokenId)
-    ).to.be.revertedWithCustomError(lingolinCreditNFT, "LingolinCreditNFT__TransferToZeroAddressNotAllowed");
+      lingolinCreditNFT.ownerOf(tokenId)
+    ).to.be.revertedWithCustomError(lingolinCreditNFT, "OwnerQueryForNonexistentToken");
     
+    // Verify user's balance is decreased
+    expect(await lingolinCreditNFT.balanceOf(user.address)).to.equal(0);
+  });
+
+  it("Should not allow non-owners to burn tokens", async function () {
+    // Mint a token to the user
+    await lingolinCreditNFT.connect(owner).mintNFT(user.address);
+    const tokenId = 1; // Second token minted
+
+    // Owner should not be able to burn user's token
+    await expect(
+      lingolinCreditNFT.connect(owner).burn(tokenId)
+    ).to.be.revertedWithCustomError(lingolinCreditNFT, "LingolinCreditNFT__NotTokenOwner");
+
     // Verify token still exists and belongs to user
     expect(await lingolinCreditNFT.ownerOf(tokenId)).to.equal(user.address);
+    expect(await lingolinCreditNFT.balanceOf(user.address)).to.equal(1);
   });
 });

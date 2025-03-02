@@ -10,10 +10,9 @@ contract LingolinCreditNFT is ERC721A, Ownable {
     using Strings for uint256;
 
     string public metadataURI;
-
-    // Custom errors
-    error LingolinCreditNFT__NonBurnableToken();
-    error LingolinCreditNFT__TransferToZeroAddressNotAllowed();
+    
+    // Custom error for unauthorized burns
+    error LingolinCreditNFT__NotTokenOwner();
 
     constructor(string memory _metadataURI) 
         ERC721A("LingolinCreditNFTTEST123123", "LCN") 
@@ -45,33 +44,26 @@ contract LingolinCreditNFT is ERC721A, Ownable {
     }
 
     /**
-     * @dev Override _beforeTokenTransfers to prevent transfers to the zero address,
-     * which is a common way to burn tokens.
+     * @dev Burns a specific token. Only the token owner can burn their own token.
      */
-    function _beforeTokenTransfers(
-        address from,
-        address to,
-        uint256 startTokenId,
-        uint256 quantity
-    ) internal override {
-        if (to == address(0)) {
-            revert LingolinCreditNFT__TransferToZeroAddressNotAllowed();
+    function burn(uint256 tokenId) external {
+        // Check if caller is the token owner
+        if (ownerOf(tokenId) != msg.sender) {
+            revert LingolinCreditNFT__NotTokenOwner();
         }
-        super._beforeTokenTransfers(from, to, startTokenId, quantity);
+        _burn(tokenId);
     }
 
     /**
-     * @dev Explicitly block any burn function that might be called.
-     * This function is added to revert any direct attempts to burn tokens.
+     * @dev Burns multiple tokens in a batch. Only the token owner can burn their own tokens.
      */
-    function burn(uint256) external pure {
-        revert LingolinCreditNFT__NonBurnableToken();
-    }
-
-    /**
-     * @dev Block burning multiple tokens at once.
-     */
-    function burnBatch(uint256[] calldata) external pure {
-        revert LingolinCreditNFT__NonBurnableToken();
+    function burnBatch(uint256[] calldata tokenIds) external {
+        for (uint256 i = 0; i < tokenIds.length; i++) {
+            // Check if caller is the token owner for each token
+            if (ownerOf(tokenIds[i]) != msg.sender) {
+                revert LingolinCreditNFT__NotTokenOwner();
+            }
+            _burn(tokenIds[i]);
+        }
     }
 }
