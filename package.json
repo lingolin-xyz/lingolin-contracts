@@ -4,7 +4,10 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "compile": "npx hardhat compile",
+    "deploy:base": "npx hardhat run ./scripts/deploy-credit-nft.ts --network base_sepolia",
+    "deploy:monad": "npx hardhat run ./scripts/deploy-credit-nft.ts --network monad_testnet",
+    "test": "npx hardhat test"
   },
   "keywords": [],
   "author": "",
@@ -12,9 +15,12 @@
   "type": "commonjs",
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "erc721a": "^4.3.0",
     "hardhat": "^2.22.19"
   },
   "dependencies": {
-    "@openzeppelin/contracts": "^5.2.0"
+    "@openzeppelin/contracts": "^5.2.0",
+    "dotenv": "^16.4.7",
+    "ethers": "^6.13.5"
   }
 }
