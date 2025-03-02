@@ -57,7 +57,7 @@ describe("LingolinCreditNFT", function () {
     
     await expect(
       lingolinCreditNFT.connect(user).transferFrom(user.address, hre.ethers.ZeroAddress, tokenId)
-    ).to.be.reverted;
+    ).to.be.revertedWithCustomError(lingolinCreditNFT, "LingolinCreditNFT__TransferToZeroAddressNotAllowed");
     
     // Verify token still exists and belongs to user
     expect(await lingolinCreditNFT.ownerOf(tokenId)).to.equal(user.address);

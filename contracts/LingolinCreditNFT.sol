@@ -11,6 +11,10 @@ contract LingolinCreditNFT is ERC721A, Ownable {
 
     string public metadataURI;
 
+    // Custom errors
+    error LingolinCreditNFT__NonBurnableToken();
+    error LingolinCreditNFT__TransferToZeroAddressNotAllowed();
+
     constructor(string memory _metadataURI) 
         ERC721A("LingolinCreditNFTTEST123123", "LCN") 
         Ownable(msg.sender) 
@@ -38,5 +42,36 @@ contract LingolinCreditNFT is ERC721A, Ownable {
 
     function updateMetadataURI(string memory _metadataURI) external onlyOwner {
         metadataURI = _metadataURI;
+    }
+
+    /**
+     * @dev Override _beforeTokenTransfers to prevent transfers to the zero address,
+     * which is a common way to burn tokens.
+     */
+    function _beforeTokenTransfers(
+        address from,
+        address to,
+        uint256 startTokenId,
+        uint256 quantity
+    ) internal override {
+        if (to == address(0)) {
+            revert LingolinCreditNFT__TransferToZeroAddressNotAllowed();
+        }
+        super._beforeTokenTransfers(from, to, startTokenId, quantity);
+    }
+
+    /**
+     * @dev Explicitly block any burn function that might be called.
+     * This function is added to revert any direct attempts to burn tokens.
+     */
+    function burn(uint256) external pure {
+        revert LingolinCreditNFT__NonBurnableToken();
+    }
+
+    /**
+     * @dev Block burning multiple tokens at once.
+     */
+    function burnBatch(uint256[] calldata) external pure {
+        revert LingolinCreditNFT__NonBurnableToken();
     }
 }
