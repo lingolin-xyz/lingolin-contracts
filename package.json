@@ -5,6 +5,7 @@
   "main": "index.js",
   "scripts": {
     "compile": "npx hardhat compile",
+    "deploy": "npm run deploy:local",
     "deploy:base": "npx hardhat run ./scripts/deploy-credit-nft.ts --network base_sepolia",
     "deploy:local": "npx hardhat run ./scripts/deploy-credit-nft.ts",
     "deploy:monad": "npx hardhat run ./scripts/deploy-credit-nft.ts --network monad_testnet",
