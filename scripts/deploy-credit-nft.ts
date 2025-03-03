@@ -1,4 +1,8 @@
-import { ethers } from "hardhat"
+import { ethers, run, network } from "hardhat"
+import config from "../hardhat.config"
+
+// Get Monad testnet chain ID from config or use default value
+const MONAD_TESTNET_CHAIN_ID = config.networks?.monad_testnet?.chainId ?? 10143
 
 async function main() {
   // Get the contract factory
@@ -20,12 +24,37 @@ async function main() {
 
   console.log(`✅ LingolinCreditNFT contract deployed to: ${contractAddress}`)
 
+  // Only verify on Monad testnet
+  if (network.config.chainId === MONAD_TESTNET_CHAIN_ID) {
+    // Wait for a few block confirmations to ensure the deployment is confirmed
+    console.log("⏳ Waiting for block confirmations...")
+    await lingolinCreditNFT.deploymentTransaction()?.wait(5)
+
+    // Verify the contract
+    console.log("🔍 Verifying contract on Monad Explorer...")
+    try {
+      await run("verify:verify", {
+        address: contractAddress,
+        constructorArguments: [baseURI],
+      })
+      console.log("✅ Contract verified successfully")
+    } catch (error: any) {
+      if (error.message.toLowerCase().includes("already verified")) {
+        console.log("✅ Contract already verified")
+      } else {
+        console.error("❌ Error verifying contract:", error)
+      }
+    }
+  } else {
+    console.log("⚠️ Skipping contract verification - not on Monad testnet")
+    console.log(`Current chain ID: ${network.config.chainId}`)
+  }
+
   // Get the deployer's address (which has the MINTER_ROLE by default)
   const [deployer] = await ethers.getSigners()
 
   console.log("🎨 Minting a test NFT to the deployer's address...")
   // Mint an NFT to the deployer
-
   const mintTx = await lingolinCreditNFT.mintNFT(deployer.address)
   await mintTx.wait()
 
