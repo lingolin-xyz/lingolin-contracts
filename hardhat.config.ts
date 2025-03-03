@@ -15,12 +15,21 @@ const config: HardhatUserConfig = {
     monad_testnet: {
       url: "https://testnet-rpc.monad.xyz",
       accounts: [process.env.PRIVATE_KEY!],
+      chainId: 10143, // Monad testnet chain ID
     },
     base_sepolia: {
       url: process.env.ALCHEMY_BASE_SEPOLIA_URL,
       accounts: [process.env.PRIVATE_KEY!],
     },
   },
+  sourcify: {
+    enabled: true,
+    apiUrl: "https://sourcify-api-monad.blockvision.org",
+    browserUrl: "https://testnet.monadexplorer.com/"
+  },
+  etherscan: {
+    enabled: false,
+  }
 }
 
 export default config
