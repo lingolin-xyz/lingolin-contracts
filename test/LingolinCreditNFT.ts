@@ -107,7 +107,8 @@ describe("LingolinCreditNFT", function () {
 
     // Withdraw all tokens from the NFT contract
     const contractBalance = await mockToken.balanceOf(await lingolinCreditNFT.getAddress());
-    await lingolinCreditNFT.connect(owner).withdrawRewardTokens();
+    const mockTokenAddress = await mockToken.getAddress();
+    await lingolinCreditNFT.connect(owner).withdrawRewardTokens(mockTokenAddress);
 
     // Attempt to burn should fail due to insufficient token balance
     await expect(
@@ -245,49 +246,125 @@ describe("LingolinCreditNFT", function () {
   });
 
   describe("withdrawRewardTokens", function () {
-    it("Should allow owner to withdraw all reward tokens", async function () {
-      // Get initial balances
-      const contractBalance = await mockToken.balanceOf(await lingolinCreditNFT.getAddress());
-      const ownerBalanceBefore = await mockToken.balanceOf(owner.address);
+    let otherToken: MockERC20;
 
-      // Owner withdraws all tokens
-      await lingolinCreditNFT.connect(owner).withdrawRewardTokens();
+    beforeEach(async function () {
+      // Deploy another mock token for testing specific token withdrawal
+      otherToken = await hre.ethers.deployContract("MockERC20", ["Other Token", "OTK"]);
+      await otherToken.waitForDeployment();
+      await otherToken.mint(await lingolinCreditNFT.getAddress(), hre.ethers.parseUnits("500.0", "ether"));
+    });
+
+    it("Should allow owner to withdraw specific reward tokens", async function () {
+      const otherTokenAddress = await otherToken.getAddress();
+      // Get initial balances
+      const contractBalance = await otherToken.balanceOf(await lingolinCreditNFT.getAddress());
+      const ownerBalanceBefore = await otherToken.balanceOf(owner.address);
+
+      // Owner withdraws specific token
+      await lingolinCreditNFT.connect(owner).withdrawRewardTokens(otherTokenAddress);
 
       // Check balances after withdrawal
-      const contractBalanceAfter = await mockToken.balanceOf(await lingolinCreditNFT.getAddress());
-      const ownerBalanceAfter = await mockToken.balanceOf(owner.address);
+      const contractBalanceAfter = await otherToken.balanceOf(await lingolinCreditNFT.getAddress());
+      const ownerBalanceAfter = await otherToken.balanceOf(owner.address);
 
-      // Verify contract balance is now 0
+      // Verify contract balance is now 0 for the specific token
       expect(contractBalanceAfter).to.equal(0);
 
       // Verify owner received all tokens
       expect(ownerBalanceAfter - ownerBalanceBefore).to.equal(contractBalance);
+
+      // Verify the main reward token balance remains unchanged
+      const mainTokenBalance = await mockToken.balanceOf(await lingolinCreditNFT.getAddress());
+      expect(mainTokenBalance).to.be.gt(0);
     });
 
     it("Should not allow non-owner to withdraw reward tokens", async function () {
+      const mockTokenAddress = await mockToken.getAddress();
       await expect(
-        lingolinCreditNFT.connect(user).withdrawRewardTokens()
+        lingolinCreditNFT.connect(user).withdrawRewardTokens(mockTokenAddress)
       ).to.be.revertedWithCustomError(lingolinCreditNFT, "OwnableUnauthorizedAccount");
     });
 
-    it("Should emit correct transfer event when withdrawing", async function () {
-      const contractBalance = await mockToken.balanceOf(await lingolinCreditNFT.getAddress());
+    it("Should emit correct transfer event when withdrawing specific token", async function () {
+      const otherTokenAddress = await otherToken.getAddress();
+      const contractBalance = await otherToken.balanceOf(await lingolinCreditNFT.getAddress());
       
-      await expect(lingolinCreditNFT.connect(owner).withdrawRewardTokens())
-        .to.emit(mockToken, "Transfer")
+      await expect(lingolinCreditNFT.connect(owner).withdrawRewardTokens(otherTokenAddress))
+        .to.emit(otherToken, "Transfer")
         .withArgs(await lingolinCreditNFT.getAddress(), owner.address, contractBalance);
     });
 
-    it("Should handle withdrawal when contract has zero balance", async function () {
+    it("Should handle withdrawal when contract has zero balance of specific token", async function () {
+      const otherTokenAddress = await otherToken.getAddress();
       // First withdraw all tokens
-      await lingolinCreditNFT.connect(owner).withdrawRewardTokens();
+      await lingolinCreditNFT.connect(owner).withdrawRewardTokens(otherTokenAddress);
       
       // Try to withdraw again with zero balance
-      await lingolinCreditNFT.connect(owner).withdrawRewardTokens();
+      await lingolinCreditNFT.connect(owner).withdrawRewardTokens(otherTokenAddress);
       
       // Verify contract balance remains zero
-      const contractBalanceAfter = await mockToken.balanceOf(await lingolinCreditNFT.getAddress());
+      const contractBalanceAfter = await otherToken.balanceOf(await lingolinCreditNFT.getAddress());
       expect(contractBalanceAfter).to.equal(0);
+    });
+  });
+
+  describe("withdrawETH", function () {
+    beforeEach(async function () {
+      // Send some ETH to the contract
+      await owner.sendTransaction({
+        to: await lingolinCreditNFT.getAddress(),
+        value: hre.ethers.parseEther("1.0")
+      });
+    });
+
+    it("Should allow owner to withdraw all ETH", async function () {
+      // Get initial balances
+      const contractBalance = await hre.ethers.provider.getBalance(await lingolinCreditNFT.getAddress());
+      const ownerBalanceBefore = await hre.ethers.provider.getBalance(owner.address);
+
+      // Owner withdraws ETH
+      const tx = await lingolinCreditNFT.connect(owner).withdrawETH();
+      const receipt = await tx.wait();
+      const gasCost = receipt!.gasUsed * receipt!.gasPrice;
+
+      // Get balances after withdrawal
+      const contractBalanceAfter = await hre.ethers.provider.getBalance(await lingolinCreditNFT.getAddress());
+      const ownerBalanceAfter = await hre.ethers.provider.getBalance(owner.address);
+
+      // Verify contract balance is now 0
+      expect(contractBalanceAfter).to.equal(0n);
+
+      // Verify owner received all ETH (accounting for gas costs)
+      expect(ownerBalanceAfter + BigInt(gasCost) - ownerBalanceBefore).to.equal(contractBalance);
+    });
+
+    it("Should not allow non-owner to withdraw ETH", async function () {
+      await expect(
+        lingolinCreditNFT.connect(user).withdrawETH()
+      ).to.be.revertedWithCustomError(lingolinCreditNFT, "OwnableUnauthorizedAccount");
+    });
+
+    it("Should handle withdrawal when contract has zero ETH balance", async function () {
+      // First withdraw all ETH
+      await lingolinCreditNFT.connect(owner).withdrawETH();
+      
+      // Try to withdraw again with zero balance
+      await lingolinCreditNFT.connect(owner).withdrawETH();
+      
+      // Verify contract balance remains zero
+      const contractBalanceAfter = await hre.ethers.provider.getBalance(await lingolinCreditNFT.getAddress());
+      expect(contractBalanceAfter).to.equal(0n);
+    });
+
+    it("Should emit ETH transfer event", async function () {
+      const contractBalance = await hre.ethers.provider.getBalance(await lingolinCreditNFT.getAddress());
+      
+      await expect(lingolinCreditNFT.connect(owner).withdrawETH())
+        .to.changeEtherBalances(
+          [await lingolinCreditNFT.getAddress(), owner],
+          [-contractBalance, contractBalance]
+        );
     });
   });
 
@@ -372,7 +449,8 @@ describe("LingolinCreditNFT", function () {
       const ownerBalanceBefore = await newMockToken.balanceOf(owner.address);
       
       // Withdraw tokens
-      await lingolinCreditNFT.connect(owner).withdrawRewardTokens();
+      const newTokenAddress = await newMockToken.getAddress();
+      await lingolinCreditNFT.connect(owner).withdrawRewardTokens(newTokenAddress);
       
       // Check balances after withdrawal
       const contractBalanceAfter = await newMockToken.balanceOf(await lingolinCreditNFT.getAddress());

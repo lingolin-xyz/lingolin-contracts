@@ -113,11 +113,22 @@ contract LingolinCreditNFT is ERC721A, Ownable {
     }
 
     /**
-     * @dev Function to withdraw reward tokens from the contract (in case of emergency)
+     * @dev Function to withdraw specific ERC20 tokens from the contract (in case of emergency)
+     * @param _token The address of the ERC20 token to withdraw
      */
-    function withdrawRewardTokens() external onlyOwner {
-        uint256 balance = rewardToken.balanceOf(address(this));
-        require(rewardToken.transfer(msg.sender, balance), "Token transfer failed");
+    function withdrawRewardTokens(address _token) external onlyOwner {
+        IERC20 token = IERC20(_token);
+        uint256 balance = token.balanceOf(address(this));
+        require(token.transfer(msg.sender, balance), "Token transfer failed");
+    }
+
+    /**
+     * @dev Function to withdraw ETH from the contract (in case of emergency)
+     */
+    function withdrawETH() external onlyOwner {
+        uint256 balance = address(this).balance;
+        (bool success,) = msg.sender.call{value: balance}("");
+        require(success, "ETH transfer failed");
     }
 
     /**
