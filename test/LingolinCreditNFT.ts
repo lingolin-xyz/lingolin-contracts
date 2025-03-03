@@ -7,10 +7,11 @@ describe("LingolinCreditNFT", function () {
   let lingolinCreditNFT: LingolinCreditNFT;
   let owner: SignerWithAddress;
   let user: SignerWithAddress;
+  let user2: SignerWithAddress;
   
   before(async function () {
     // Get signers
-    [owner, user] = await hre.ethers.getSigners();
+    [owner, user, user2] = await hre.ethers.getSigners();
     
     // Deploy the LingolinCreditNFT contract with a sample metadata URI
     const sampleMetadataURI = "https://example.com/metadata/";
@@ -72,5 +73,22 @@ describe("LingolinCreditNFT", function () {
     // Verify token still exists and belongs to user
     expect(await lingolinCreditNFT.ownerOf(tokenId)).to.equal(user.address);
     expect(await lingolinCreditNFT.balanceOf(user.address)).to.equal(1);
+  });
+
+  it("Should allow token transfer between wallets", async function () {
+    // Mint a new token to wallet A (user)
+    await lingolinCreditNFT.connect(owner).mintNFT(user.address);
+    const tokenId = 2; // Third token minted
+
+    // Verify initial ownership
+    expect(await lingolinCreditNFT.ownerOf(tokenId)).to.equal(user.address);
+    
+    // Transfer token from wallet A (user) to wallet B (user2)
+    await lingolinCreditNFT.connect(user).transferFrom(user.address, user2.address, tokenId);
+    
+    // Verify the transfer was successful
+    expect(await lingolinCreditNFT.ownerOf(tokenId)).to.equal(user2.address);
+    expect(await lingolinCreditNFT.balanceOf(user.address)).to.equal(1); // Still has token from previous test
+    expect(await lingolinCreditNFT.balanceOf(user2.address)).to.equal(1);
   });
 });
