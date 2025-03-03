@@ -11,8 +11,9 @@ contract LingolinCreditNFT is ERC721A, Ownable {
 
     string public metadataURI;
     
-    // Custom error for unauthorized burns
+    // Custom errors
     error LingolinCreditNFT__NotTokenOwner();
+    error LingolinCreditNFT__NonTransferableToken();
 
     constructor(string memory _metadataURI) 
         ERC721A("LingolinCreditNFTTEST123123", "LCN") 
@@ -41,6 +42,21 @@ contract LingolinCreditNFT is ERC721A, Ownable {
 
     function updateMetadataURI(string memory _metadataURI) external onlyOwner {
         metadataURI = _metadataURI;
+    }
+
+    /**
+     * @dev Override transfer functions to prevent transfers (soulbound token)
+     */
+    function transferFrom(address from, address to, uint256 tokenId) public payable override {
+        revert LingolinCreditNFT__NonTransferableToken();
+    }
+
+    function safeTransferFrom(address from, address to, uint256 tokenId) public payable override {
+        revert LingolinCreditNFT__NonTransferableToken();
+    }
+
+    function safeTransferFrom(address from, address to, uint256 tokenId, bytes memory data) public payable override {
+        revert LingolinCreditNFT__NonTransferableToken();
     }
 
     /**

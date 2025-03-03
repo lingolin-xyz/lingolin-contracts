@@ -70,7 +70,7 @@ describe("LingolinCreditNFT", function () {
     expect(await lingolinCreditNFT.balanceOf(user.address)).to.equal(1);
   });
 
-  it("Should allow token transfer between wallets", async function () {
+  it("Should not allow token transfers (soulbound)", async function () {
     // Mint a new token to wallet A (user)
     await lingolinCreditNFT.connect(owner).mintNFT(user.address);
     const tokenId = 0; // First token since we have a fresh contract
@@ -78,12 +78,35 @@ describe("LingolinCreditNFT", function () {
     // Verify initial ownership
     expect(await lingolinCreditNFT.ownerOf(tokenId)).to.equal(user.address);
     
-    // Transfer token from wallet A (user) to wallet B (user2)
-    await lingolinCreditNFT.connect(user).transferFrom(user.address, user2.address, tokenId);
-    
-    // Verify the transfer was successful
-    expect(await lingolinCreditNFT.ownerOf(tokenId)).to.equal(user2.address);
-    expect(await lingolinCreditNFT.balanceOf(user.address)).to.equal(0);
-    expect(await lingolinCreditNFT.balanceOf(user2.address)).to.equal(1);
+    // Attempt to transfer token from wallet A (user) to wallet B (user2)
+    // Should revert with NonTransferableToken error
+    await expect(
+      lingolinCreditNFT.connect(user).transferFrom(user.address, user2.address, tokenId)
+    ).to.be.revertedWithCustomError(lingolinCreditNFT, "LingolinCreditNFT__NonTransferableToken");
+
+    // Attempt safe transfer - should also revert
+    await expect(
+      lingolinCreditNFT.connect(user)["safeTransferFrom(address,address,uint256)"](user.address, user2.address, tokenId)
+    ).to.be.revertedWithCustomError(lingolinCreditNFT, "LingolinCreditNFT__NonTransferableToken");
+
+    // Verify the token is still owned by the original owner
+    expect(await lingolinCreditNFT.ownerOf(tokenId)).to.equal(user.address);
+    expect(await lingolinCreditNFT.balanceOf(user.address)).to.equal(1);
+    expect(await lingolinCreditNFT.balanceOf(user2.address)).to.equal(0);
+  });
+
+  it("Should not allow transfers to zero address (burning via transfer)", async function () {
+    // Mint a token to the user
+    await lingolinCreditNFT.connect(owner).mintNFT(user.address);
+    const tokenId = 0;
+    const zeroAddress = "0x0000000000000000000000000000000000000000";
+
+    // Attempt to transfer to zero address - should revert
+    await expect(
+      lingolinCreditNFT.connect(user).transferFrom(user.address, zeroAddress, tokenId)
+    ).to.be.revertedWithCustomError(lingolinCreditNFT, "LingolinCreditNFT__NonTransferableToken");
+
+    // Verify the token still exists and belongs to the original owner
+    expect(await lingolinCreditNFT.ownerOf(tokenId)).to.equal(user.address);
   });
 });
