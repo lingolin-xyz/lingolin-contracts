@@ -208,4 +208,39 @@ describe("LingolinCreditNFT", function () {
       expect(userBalanceAfter - userBalanceBefore).to.equal(newRewardAmount);
     });
   });
+
+  describe("updateMetadataURI", function () {
+    const newMetadataURI = "https://new-example.com/metadata/";
+
+    it("Should allow owner to update metadata URI", async function () {
+      await lingolinCreditNFT.connect(owner).updateMetadataURI(newMetadataURI);
+      expect(await lingolinCreditNFT.metadataURI()).to.equal(newMetadataURI);
+    });
+
+    it("Should not allow non-owner to update metadata URI", async function () {
+      await expect(
+        lingolinCreditNFT.connect(user).updateMetadataURI(newMetadataURI)
+      ).to.be.revertedWithCustomError(lingolinCreditNFT, "OwnableUnauthorizedAccount");
+    });
+
+    it("Should reflect new URI in tokenURI calls", async function () {
+      // Mint a token first
+      await lingolinCreditNFT.connect(owner).mintNFT(user.address);
+      const tokenId = 0;
+
+      // Update the metadata URI
+      await lingolinCreditNFT.connect(owner).updateMetadataURI(newMetadataURI);
+
+      // Check if tokenURI returns the new metadata URI
+      expect(await lingolinCreditNFT.tokenURI(tokenId)).to.equal(newMetadataURI);
+    });
+
+    it("Should revert tokenURI call for non-existent token", async function () {
+      const nonExistentTokenId = 999;
+      
+      await expect(
+        lingolinCreditNFT.tokenURI(nonExistentTokenId)
+      ).to.be.revertedWithCustomError(lingolinCreditNFT, "URIQueryForNonexistentToken");
+    });
+  });
 });
