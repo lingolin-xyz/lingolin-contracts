@@ -27,7 +27,7 @@ contract LingolinCreditNFT is ERC721A, Ownable {
         address _rewardToken,
         uint256 _rewardPerBurn
     ) 
-        ERC721A("LingolinCreditNFTTEST123123", "LCN") 
+        ERC721A("LingolinCreditNFT", "LCN") 
         Ownable(msg.sender) 
     {
         metadataURI = _metadataURI;
