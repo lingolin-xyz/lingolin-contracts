@@ -172,4 +172,40 @@ describe("LingolinCreditNFT", function () {
     // Verify the token still exists and belongs to the original owner
     expect(await lingolinCreditNFT.ownerOf(tokenId)).to.equal(user.address);
   });
+
+  describe("setRewardPerBurn", function () {
+    const newRewardAmount = hre.ethers.parseUnits("20.0", "ether"); // 20 tokens
+
+    it("Should allow owner to update reward per burn", async function () {
+      await lingolinCreditNFT.connect(owner).setRewardPerBurn(newRewardAmount);
+      expect(await lingolinCreditNFT.rewardPerBurn()).to.equal(newRewardAmount);
+    });
+
+    it("Should not allow non-owner to update reward per burn", async function () {
+      await expect(
+        lingolinCreditNFT.connect(user).setRewardPerBurn(newRewardAmount)
+      ).to.be.revertedWithCustomError(lingolinCreditNFT, "OwnableUnauthorizedAccount");
+    });
+
+    it("Should apply new reward amount when burning tokens", async function () {
+      // Set new reward amount
+      await lingolinCreditNFT.connect(owner).setRewardPerBurn(newRewardAmount);
+      
+      // Mint a token to the user
+      await lingolinCreditNFT.connect(owner).mintNFT(user.address);
+      const tokenId = 0;
+      
+      // Get user's balance before burning
+      const userBalanceBefore = await mockToken.balanceOf(user.address);
+      
+      // Burn the token
+      await lingolinCreditNFT.connect(user).burn(tokenId);
+      
+      // Get user's balance after burning
+      const userBalanceAfter = await mockToken.balanceOf(user.address);
+      
+      // Verify user received the new reward amount
+      expect(userBalanceAfter - userBalanceBefore).to.equal(newRewardAmount);
+    });
+  });
 });
