@@ -14,6 +14,9 @@ contract LingolinCreditNFT is ERC721A, Ownable {
     IERC20 public rewardToken;
     uint256 public rewardPerBurn;
     
+    // Mapping for individual token URIs
+    mapping(uint256 => string) private _tokenURIs;
+    
     // Custom errors
     error LingolinCreditNFT__NotTokenOwner();
     error LingolinCreditNFT__NonTransferableToken();
@@ -47,7 +50,25 @@ contract LingolinCreditNFT is ERC721A, Ownable {
         returns (string memory)
     {
         if (!_exists(tokenId)) revert URIQueryForNonexistentToken();
-        return metadataURI;
+        
+        string memory _tokenURI = _tokenURIs[tokenId];
+        
+        // If there's no individual URI, return the default one
+        if (bytes(_tokenURI).length == 0) {
+            return metadataURI;
+        }
+        
+        return _tokenURI;
+    }
+
+    /**
+     * @dev Sets the token URI for a specific token ID
+     * @param tokenId The token ID to update
+     * @param _tokenURI The new token URI
+     */
+    function setTokenURI(uint256 tokenId, string memory _tokenURI) external onlyOwner {
+        if (!_exists(tokenId)) revert URIQueryForNonexistentToken();
+        _tokenURIs[tokenId] = _tokenURI;
     }
 
     function updateMetadataURI(string memory _metadataURI) external onlyOwner {
