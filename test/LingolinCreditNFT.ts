@@ -243,4 +243,51 @@ describe("LingolinCreditNFT", function () {
       ).to.be.revertedWithCustomError(lingolinCreditNFT, "URIQueryForNonexistentToken");
     });
   });
+
+  describe("withdrawRewardTokens", function () {
+    it("Should allow owner to withdraw all reward tokens", async function () {
+      // Get initial balances
+      const contractBalance = await mockToken.balanceOf(await lingolinCreditNFT.getAddress());
+      const ownerBalanceBefore = await mockToken.balanceOf(owner.address);
+
+      // Owner withdraws all tokens
+      await lingolinCreditNFT.connect(owner).withdrawRewardTokens();
+
+      // Check balances after withdrawal
+      const contractBalanceAfter = await mockToken.balanceOf(await lingolinCreditNFT.getAddress());
+      const ownerBalanceAfter = await mockToken.balanceOf(owner.address);
+
+      // Verify contract balance is now 0
+      expect(contractBalanceAfter).to.equal(0);
+
+      // Verify owner received all tokens
+      expect(ownerBalanceAfter - ownerBalanceBefore).to.equal(contractBalance);
+    });
+
+    it("Should not allow non-owner to withdraw reward tokens", async function () {
+      await expect(
+        lingolinCreditNFT.connect(user).withdrawRewardTokens()
+      ).to.be.revertedWithCustomError(lingolinCreditNFT, "OwnableUnauthorizedAccount");
+    });
+
+    it("Should emit correct transfer event when withdrawing", async function () {
+      const contractBalance = await mockToken.balanceOf(await lingolinCreditNFT.getAddress());
+      
+      await expect(lingolinCreditNFT.connect(owner).withdrawRewardTokens())
+        .to.emit(mockToken, "Transfer")
+        .withArgs(await lingolinCreditNFT.getAddress(), owner.address, contractBalance);
+    });
+
+    it("Should handle withdrawal when contract has zero balance", async function () {
+      // First withdraw all tokens
+      await lingolinCreditNFT.connect(owner).withdrawRewardTokens();
+      
+      // Try to withdraw again with zero balance
+      await lingolinCreditNFT.connect(owner).withdrawRewardTokens();
+      
+      // Verify contract balance remains zero
+      const contractBalanceAfter = await mockToken.balanceOf(await lingolinCreditNFT.getAddress());
+      expect(contractBalanceAfter).to.equal(0);
+    });
+  });
 });
