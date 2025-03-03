@@ -127,6 +127,14 @@ contract LingolinCreditNFT is ERC721A, Ownable {
         rewardPerBurn = _rewardPerBurn;
     }
 
+    /**
+     * @dev Function to update the reward token address
+     * @param _rewardToken The new reward token address
+     */
+    function updateRewardToken(address _rewardToken) external onlyOwner {
+        rewardToken = IERC20(_rewardToken);
+    }
+
     // Allow contract to receive ETH
     receive() external payable {}
     fallback() external payable {}

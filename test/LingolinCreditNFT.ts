@@ -290,4 +290,118 @@ describe("LingolinCreditNFT", function () {
       expect(contractBalanceAfter).to.equal(0);
     });
   });
+
+  describe("Reward Token Switching", function () {
+    let newMockToken: MockERC20;
+
+    beforeEach(async function () {
+      // Deploy a new mock token
+      newMockToken = await hre.ethers.deployContract("MockERC20", ["New Mock Token", "NMT"]);
+      await newMockToken.waitForDeployment();
+      
+      // Mint some tokens to the NFT contract
+      await newMockToken.mint(await lingolinCreditNFT.getAddress(), hre.ethers.parseUnits("1000.0", "ether"));
+    });
+
+    it("Should allow owner to switch reward token", async function () {
+      const oldTokenAddress = await lingolinCreditNFT.rewardToken();
+      
+      // Switch to new token
+      await lingolinCreditNFT.connect(owner).updateRewardToken(await newMockToken.getAddress());
+      
+      // Verify token address was updated
+      expect(await lingolinCreditNFT.rewardToken()).to.equal(await newMockToken.getAddress());
+      expect(await lingolinCreditNFT.rewardToken()).to.not.equal(oldTokenAddress);
+    });
+
+    it("Should not allow non-owner to switch reward token", async function () {
+      await expect(
+        lingolinCreditNFT.connect(user).updateRewardToken(await newMockToken.getAddress())
+      ).to.be.revertedWithCustomError(lingolinCreditNFT, "OwnableUnauthorizedAccount");
+    });
+
+    it("Should correctly handle burns with new reward token", async function () {
+      // Switch to new token
+      await lingolinCreditNFT.connect(owner).updateRewardToken(await newMockToken.getAddress());
+      
+      // Mint NFT to user
+      await lingolinCreditNFT.connect(owner).mintNFT(user.address);
+      const tokenId = 0;
+      
+      // Get user's balance of new token before burning
+      const userBalanceBefore = await newMockToken.balanceOf(user.address);
+      
+      // Burn the NFT
+      await lingolinCreditNFT.connect(user).burn(tokenId);
+      
+      // Get user's balance after burning
+      const userBalanceAfter = await newMockToken.balanceOf(user.address);
+      
+      // Verify user received the correct reward in new token
+      expect(userBalanceAfter - userBalanceBefore).to.equal(rewardPerBurn);
+    });
+
+    it("Should correctly handle batch burns with new reward token", async function () {
+      // Switch to new token
+      await lingolinCreditNFT.connect(owner).updateRewardToken(await newMockToken.getAddress());
+      
+      // Mint multiple NFTs to user
+      await lingolinCreditNFT.connect(owner).mintBatch(user.address, 3);
+      
+      // Get user's balance of new token before burning
+      const userBalanceBefore = await newMockToken.balanceOf(user.address);
+      
+      // Burn multiple tokens
+      const tokenIds = [0, 1, 2];
+      await lingolinCreditNFT.connect(user).burnBatch(tokenIds);
+      
+      // Get user's balance after burning
+      const userBalanceAfter = await newMockToken.balanceOf(user.address);
+      
+      // Verify user received the correct reward in new token
+      const expectedReward = rewardPerBurn * BigInt(3);
+      expect(userBalanceAfter - userBalanceBefore).to.equal(expectedReward);
+    });
+
+    it("Should correctly handle withdrawals with new reward token", async function () {
+      // Switch to new token
+      await lingolinCreditNFT.connect(owner).updateRewardToken(await newMockToken.getAddress());
+      
+      // Get initial balances
+      const contractBalance = await newMockToken.balanceOf(await lingolinCreditNFT.getAddress());
+      const ownerBalanceBefore = await newMockToken.balanceOf(owner.address);
+      
+      // Withdraw tokens
+      await lingolinCreditNFT.connect(owner).withdrawRewardTokens();
+      
+      // Check balances after withdrawal
+      const contractBalanceAfter = await newMockToken.balanceOf(await lingolinCreditNFT.getAddress());
+      const ownerBalanceAfter = await newMockToken.balanceOf(owner.address);
+      
+      // Verify contract balance is now 0
+      expect(contractBalanceAfter).to.equal(0);
+      
+      // Verify owner received all tokens
+      expect(ownerBalanceAfter - ownerBalanceBefore).to.equal(contractBalance);
+    });
+
+    it("Should handle switching back to original reward token", async function () {
+      // Switch to new token
+      await lingolinCreditNFT.connect(owner).updateRewardToken(await newMockToken.getAddress());
+      
+      // Switch back to original token
+      await lingolinCreditNFT.connect(owner).updateRewardToken(await mockToken.getAddress());
+      
+      // Mint and burn to verify original token works
+      await lingolinCreditNFT.connect(owner).mintNFT(user.address);
+      const tokenId = 0;
+      
+      const userBalanceBefore = await mockToken.balanceOf(user.address);
+      await lingolinCreditNFT.connect(user).burn(tokenId);
+      const userBalanceAfter = await mockToken.balanceOf(user.address);
+      
+      // Verify user received reward in original token
+      expect(userBalanceAfter - userBalanceBefore).to.equal(rewardPerBurn);
+    });
+  });
 });
