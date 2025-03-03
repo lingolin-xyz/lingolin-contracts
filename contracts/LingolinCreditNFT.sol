@@ -14,6 +14,9 @@ contract LingolinCreditNFT is ERC721A, Ownable {
     // Custom errors
     error LingolinCreditNFT__NotTokenOwner();
     error LingolinCreditNFT__NonTransferableToken();
+    error LingolinCreditNFT__InsufficientContractBalance();
+
+    uint256 public constant REWARD_PER_BURN = 10000 gwei;
 
     constructor(string memory _metadataURI) 
         ERC721A("LingolinCreditNFTTEST123123", "LCN") 
@@ -59,6 +62,12 @@ contract LingolinCreditNFT is ERC721A, Ownable {
         revert LingolinCreditNFT__NonTransferableToken();
     }
 
+    // Function to withdraw ETH from the contract (in case of emergency)
+    function withdraw() external onlyOwner {
+        (bool success, ) = msg.sender.call{value: address(this).balance}("");
+        require(success, "Transfer failed");
+    }
+
     /**
      * @dev Burns a specific token. Only the token owner can burn their own token.
      */
@@ -67,13 +76,30 @@ contract LingolinCreditNFT is ERC721A, Ownable {
         if (ownerOf(tokenId) != msg.sender) {
             revert LingolinCreditNFT__NotTokenOwner();
         }
+        
+        // Check if contract has enough balance
+        if (address(this).balance < REWARD_PER_BURN) {
+            revert LingolinCreditNFT__InsufficientContractBalance();
+        }
+
         _burn(tokenId);
+
+        // Transfer 1 ETH to the burner
+        (bool success, ) = msg.sender.call{value: REWARD_PER_BURN}("");
+        require(success, "Transfer failed");
     }
 
     /**
      * @dev Burns multiple tokens in a batch. Only the token owner can burn their own tokens.
      */
     function burnBatch(uint256[] calldata tokenIds) external {
+        uint256 totalReward = tokenIds.length * REWARD_PER_BURN;
+        
+        // Check if contract has enough balance for all burns
+        if (address(this).balance < totalReward) {
+            revert LingolinCreditNFT__InsufficientContractBalance();
+        }
+
         for (uint256 i = 0; i < tokenIds.length; i++) {
             // Check if caller is the token owner for each token
             if (ownerOf(tokenIds[i]) != msg.sender) {
@@ -81,5 +107,13 @@ contract LingolinCreditNFT is ERC721A, Ownable {
             }
             _burn(tokenIds[i]);
         }
+
+        // Transfer the total reward after all burns are successful
+        (bool success, ) = msg.sender.call{value: totalReward}("");
+        require(success, "Transfer failed");
     }
+
+    // Allow contract to receive ETH
+    receive() external payable {}
+    fallback() external payable {}
 }
