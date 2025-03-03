@@ -8,33 +8,28 @@ describe("LingolinCreditNFT", function () {
   let owner: SignerWithAddress;
   let user: SignerWithAddress;
   let user2: SignerWithAddress;
+  const sampleMetadataURI = "https://example.com/metadata/";
   
-  before(async function () {
+  beforeEach(async function () {
     // Get signers
     [owner, user, user2] = await hre.ethers.getSigners();
     
-    // Deploy the LingolinCreditNFT contract with a sample metadata URI
-    const sampleMetadataURI = "https://example.com/metadata/";
+    // Deploy a fresh instance of LingolinCreditNFT before each test
     lingolinCreditNFT = await hre.ethers.deployContract("LingolinCreditNFT", [sampleMetadataURI]);
     await lingolinCreditNFT.waitForDeployment();
   });
 
   it("Should have the correct token symbol (LCN)", async function () {
-    // Get the token symbol from the contract
     const symbol = await lingolinCreditNFT.symbol();
-    
-    // Assert that the symbol is "LCN"
     expect(symbol).to.equal("LCN");
   });
   
-  // Additional tests can be added here
   it("Should have the correct token name", async function () {
     const name = await lingolinCreditNFT.name();
     expect(name).to.equal("LingolinCreditNFTTEST123123");
   });
   
   it("Should set the correct metadata URI", async function () {
-    const sampleMetadataURI = "https://example.com/metadata/";
     expect(await lingolinCreditNFT.metadataURI()).to.equal(sampleMetadataURI);
   });
 
@@ -63,7 +58,7 @@ describe("LingolinCreditNFT", function () {
   it("Should not allow non-owners to burn tokens", async function () {
     // Mint a token to the user
     await lingolinCreditNFT.connect(owner).mintNFT(user.address);
-    const tokenId = 1; // Second token minted
+    const tokenId = 0; // First token since we have a fresh contract
 
     // Owner should not be able to burn user's token
     await expect(
@@ -78,7 +73,7 @@ describe("LingolinCreditNFT", function () {
   it("Should allow token transfer between wallets", async function () {
     // Mint a new token to wallet A (user)
     await lingolinCreditNFT.connect(owner).mintNFT(user.address);
-    const tokenId = 2; // Third token minted
+    const tokenId = 0; // First token since we have a fresh contract
 
     // Verify initial ownership
     expect(await lingolinCreditNFT.ownerOf(tokenId)).to.equal(user.address);
@@ -88,7 +83,7 @@ describe("LingolinCreditNFT", function () {
     
     // Verify the transfer was successful
     expect(await lingolinCreditNFT.ownerOf(tokenId)).to.equal(user2.address);
-    expect(await lingolinCreditNFT.balanceOf(user.address)).to.equal(1); // Still has token from previous test
+    expect(await lingolinCreditNFT.balanceOf(user.address)).to.equal(0);
     expect(await lingolinCreditNFT.balanceOf(user2.address)).to.equal(1);
   });
 });
