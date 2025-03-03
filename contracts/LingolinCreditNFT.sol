@@ -5,24 +5,31 @@ import "erc721a/contracts/ERC721A.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/Base64.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 contract LingolinCreditNFT is ERC721A, Ownable {
     using Strings for uint256;
 
     string public metadataURI;
+    IERC20 public rewardToken;
+    uint256 public rewardPerBurn;
     
     // Custom errors
     error LingolinCreditNFT__NotTokenOwner();
     error LingolinCreditNFT__NonTransferableToken();
-    error LingolinCreditNFT__InsufficientContractBalance();
+    error LingolinCreditNFT__InsufficientTokenBalance();
 
-    uint256 public constant REWARD_PER_BURN = 10000 gwei;
-
-    constructor(string memory _metadataURI) 
+    constructor(
+        string memory _metadataURI,
+        address _rewardToken,
+        uint256 _rewardPerBurn
+    ) 
         ERC721A("LingolinCreditNFTTEST123123", "LCN") 
         Ownable(msg.sender) 
     {
         metadataURI = _metadataURI;
+        rewardToken = IERC20(_rewardToken);
+        rewardPerBurn = _rewardPerBurn;
     }
 
     function mintNFT(address recipient) external onlyOwner {
@@ -50,22 +57,16 @@ contract LingolinCreditNFT is ERC721A, Ownable {
     /**
      * @dev Override transfer functions to prevent transfers (soulbound token)
      */
-    function transferFrom(address from, address to, uint256 tokenId) public payable override {
+    function transferFrom(address, address, uint256) public payable override {
         revert LingolinCreditNFT__NonTransferableToken();
     }
 
-    function safeTransferFrom(address from, address to, uint256 tokenId) public payable override {
+    function safeTransferFrom(address, address, uint256) public payable override {
         revert LingolinCreditNFT__NonTransferableToken();
     }
 
-    function safeTransferFrom(address from, address to, uint256 tokenId, bytes memory data) public payable override {
+    function safeTransferFrom(address, address, uint256, bytes memory) public payable override {
         revert LingolinCreditNFT__NonTransferableToken();
-    }
-
-    // Function to withdraw ETH from the contract (in case of emergency)
-    function withdraw() external onlyOwner {
-        (bool success, ) = msg.sender.call{value: address(this).balance}("");
-        require(success, "Transfer failed");
     }
 
     /**
@@ -77,27 +78,26 @@ contract LingolinCreditNFT is ERC721A, Ownable {
             revert LingolinCreditNFT__NotTokenOwner();
         }
         
-        // Check if contract has enough balance
-        if (address(this).balance < REWARD_PER_BURN) {
-            revert LingolinCreditNFT__InsufficientContractBalance();
+        // Check if contract has enough token balance
+        if (rewardToken.balanceOf(address(this)) < rewardPerBurn) {
+            revert LingolinCreditNFT__InsufficientTokenBalance();
         }
 
         _burn(tokenId);
 
-        // Transfer 1 ETH to the burner
-        (bool success, ) = msg.sender.call{value: REWARD_PER_BURN}("");
-        require(success, "Transfer failed");
+        // Transfer reward tokens to the burner
+        require(rewardToken.transfer(msg.sender, rewardPerBurn), "Token transfer failed");
     }
 
     /**
      * @dev Burns multiple tokens in a batch. Only the token owner can burn their own tokens.
      */
     function burnBatch(uint256[] calldata tokenIds) external {
-        uint256 totalReward = tokenIds.length * REWARD_PER_BURN;
+        uint256 totalReward = tokenIds.length * rewardPerBurn;
         
-        // Check if contract has enough balance for all burns
-        if (address(this).balance < totalReward) {
-            revert LingolinCreditNFT__InsufficientContractBalance();
+        // Check if contract has enough token balance for all burns
+        if (rewardToken.balanceOf(address(this)) < totalReward) {
+            revert LingolinCreditNFT__InsufficientTokenBalance();
         }
 
         for (uint256 i = 0; i < tokenIds.length; i++) {
@@ -109,8 +109,22 @@ contract LingolinCreditNFT is ERC721A, Ownable {
         }
 
         // Transfer the total reward after all burns are successful
-        (bool success, ) = msg.sender.call{value: totalReward}("");
-        require(success, "Transfer failed");
+        require(rewardToken.transfer(msg.sender, totalReward), "Token transfer failed");
+    }
+
+    /**
+     * @dev Function to withdraw reward tokens from the contract (in case of emergency)
+     */
+    function withdrawRewardTokens() external onlyOwner {
+        uint256 balance = rewardToken.balanceOf(address(this));
+        require(rewardToken.transfer(msg.sender, balance), "Token transfer failed");
+    }
+
+    /**
+     * @dev Function to update the reward amount per burn
+     */
+    function setRewardPerBurn(uint256 _rewardPerBurn) external onlyOwner {
+        rewardPerBurn = _rewardPerBurn;
     }
 
     // Allow contract to receive ETH

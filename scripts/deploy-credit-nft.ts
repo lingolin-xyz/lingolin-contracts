@@ -1,19 +1,50 @@
 import { ethers, run, network } from "hardhat"
 import config from "../hardhat.config"
+import { MockERC20 } from "../typechain-types"
 
 // Get Monad testnet chain ID from config or use default value
 const MONAD_TESTNET_CHAIN_ID = config.networks?.monad_testnet?.chainId ?? 10143
+const BASE_SEPOLIA_CHAIN_ID = config.networks?.base_sepolia?.chainId ?? 84532
+
+// Fixed addresses for production networks
+const REWARD_TOKEN_ADDRESS = {
+  [MONAD_TESTNET_CHAIN_ID]: "0xf817257fed379853cDe0fa4F97AB987181B1E5Ea",
+  [BASE_SEPOLIA_CHAIN_ID]: "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
+}
 
 async function main() {
+  // Define base URI for the NFT metadata
+  const baseURI = "https://www.lingolin.xyz/nft/metadata.json"
+  const rewardPerBurn = ethers.parseEther("0.01") // 10 tokens per burn
+
+  let rewardTokenAddress: string
+
+  // If we're on a local network, deploy a mock ERC20 token
+  if (!network.config.chainId || network.config.chainId === 31337) {
+    console.log("🚀 Deploying Mock ERC20 token...")
+    const MockERC20Factory = await ethers.getContractFactory("MockERC20")
+    const mockToken = await MockERC20Factory.deploy("Lingolin Token", "LIN")
+    await mockToken.waitForDeployment()
+    rewardTokenAddress = await mockToken.getAddress()
+    console.log(`✅ Mock ERC20 token deployed to: ${rewardTokenAddress}`)
+  } else {
+    // Use predefined addresses for production networks
+    rewardTokenAddress = REWARD_TOKEN_ADDRESS[network.config.chainId as keyof typeof REWARD_TOKEN_ADDRESS]
+    if (!rewardTokenAddress) {
+      throw new Error(`No reward token address configured for chain ID ${network.config.chainId}`)
+    }
+  }
+
   // Get the contract factory
   const LingolinCreditNFT = await ethers.getContractFactory("LingolinCreditNFT")
 
-  // Define base URI for the NFT metadata
-  const baseURI = "https://www.lingolin.xyz/nft/metadata.json"
-
   console.log("🚀 Deploying LingolinCreditNFT contract...")
-  // Deploy the contract with baseURI constructor parameter
-  const lingolinCreditNFT = await LingolinCreditNFT.deploy(baseURI)
+  // Deploy the contract with all constructor parameters
+  const lingolinCreditNFT = await LingolinCreditNFT.deploy(
+    baseURI,
+    rewardTokenAddress,
+    rewardPerBurn
+  )
 
   console.log("🔄 Waiting for contract deployment confirmation...")
   // Wait for contract deployment confirmation
@@ -35,7 +66,7 @@ async function main() {
     try {
       await run("verify:verify", {
         address: contractAddress,
-        constructorArguments: [baseURI],
+        constructorArguments: [baseURI, rewardTokenAddress, rewardPerBurn],
       })
       console.log("✅ Contract verified successfully")
     } catch (error: any) {
@@ -50,7 +81,16 @@ async function main() {
     console.log(`Current chain ID: ${network.config.chainId}`)
   }
 
-  // Get the deployer's address (which has the MINTER_ROLE by default)
+  // If on local network, mint some tokens to the NFT contract
+  if (!network.config.chainId || network.config.chainId === 31337) {
+    console.log("🎨 Minting reward tokens to the NFT contract...")
+    const MockERC20Factory = await ethers.getContractFactory("MockERC20")
+    const mockToken = (await MockERC20Factory.attach(rewardTokenAddress)) as MockERC20
+    await mockToken.mint(contractAddress, ethers.parseEther("1000000")) // Mint 1M tokens
+    console.log("✅ Reward tokens minted successfully")
+  }
+
+  // Get the deployer's address
   const [deployer] = await ethers.getSigners()
 
   console.log("🎨 Minting a test NFT to the deployer's address...")

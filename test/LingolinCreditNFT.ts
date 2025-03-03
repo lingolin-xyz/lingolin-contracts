@@ -1,22 +1,35 @@
 import { expect } from "chai";
 import hre from "hardhat";
-import { LingolinCreditNFT } from "../typechain-types";
+import { LingolinCreditNFT, MockERC20 } from "../typechain-types";
 import { SignerWithAddress } from "@nomicfoundation/hardhat-ethers/signers";
 
 describe("LingolinCreditNFT", function () {
   let lingolinCreditNFT: LingolinCreditNFT;
+  let mockToken: MockERC20;
   let owner: SignerWithAddress;
   let user: SignerWithAddress;
   let user2: SignerWithAddress;
   const sampleMetadataURI = "https://example.com/metadata/";
+  const rewardPerBurn = hre.ethers.parseUnits("10.0", "ether"); // 10 tokens with 18 decimals
   
   beforeEach(async function () {
     // Get signers
     [owner, user, user2] = await hre.ethers.getSigners();
     
+    // Deploy mock ERC20 token
+    mockToken = await hre.ethers.deployContract("MockERC20", ["Mock Token", "MTK"]);
+    await mockToken.waitForDeployment();
+    
     // Deploy a fresh instance of LingolinCreditNFT before each test
-    lingolinCreditNFT = await hre.ethers.deployContract("LingolinCreditNFT", [sampleMetadataURI]);
+    lingolinCreditNFT = await hre.ethers.deployContract("LingolinCreditNFT", [
+      sampleMetadataURI,
+      await mockToken.getAddress(),
+      rewardPerBurn
+    ]);
     await lingolinCreditNFT.waitForDeployment();
+
+    // Mint some tokens to the NFT contract for rewards
+    await mockToken.mint(await lingolinCreditNFT.getAddress(), hre.ethers.parseUnits("1000.0", "ether"));
   });
 
   it("Should have the correct token symbol (LCN)", async function () {
@@ -34,16 +47,6 @@ describe("LingolinCreditNFT", function () {
   });
 
   it("Should verify tokens can be burned by owner", async function () {
-    // Fund the contract with 1 ETH
-    await owner.sendTransaction({
-      to: await lingolinCreditNFT.getAddress(),
-      value: hre.ethers.parseEther("1.0")
-    });
-
-    // Verify contract has 1 ETH balance
-    expect(await hre.ethers.provider.getBalance(await lingolinCreditNFT.getAddress()))
-      .to.equal(hre.ethers.parseEther("1.0"));
-
     // Mint a token to the user for testing
     await lingolinCreditNFT.connect(owner).mintNFT(user.address);
     
@@ -53,21 +56,17 @@ describe("LingolinCreditNFT", function () {
     // Get the token ID (should be 0 for the first mint)
     const tokenId = 0;
     
-    // Get user's balance before burning
-    const userBalanceBefore = await hre.ethers.provider.getBalance(user.address);
+    // Get user's token balance before burning
+    const userBalanceBefore = await mockToken.balanceOf(user.address);
     
     // User should be able to burn their own token
-    const burnTx = await lingolinCreditNFT.connect(user).burn(tokenId);
-    const receipt = await burnTx.wait();
-    const gasCost = receipt!.gasUsed * receipt!.gasPrice;
+    await lingolinCreditNFT.connect(user).burn(tokenId);
     
     // Get user's balance after burning
-    const userBalanceAfter = await hre.ethers.provider.getBalance(user.address);
+    const userBalanceAfter = await mockToken.balanceOf(user.address);
     
-    // Verify user received the correct reward (10000 gwei)
-    // Need to account for gas costs in the balance difference
-    const expectedReward = hre.ethers.parseUnits("10000", "gwei");
-    expect(userBalanceAfter - userBalanceBefore + gasCost).to.equal(expectedReward);
+    // Verify user received the correct reward
+    expect(userBalanceAfter - userBalanceBefore).to.equal(rewardPerBurn);
     
     // Verify token no longer exists
     await expect(
@@ -78,46 +77,42 @@ describe("LingolinCreditNFT", function () {
     expect(await lingolinCreditNFT.balanceOf(user.address)).to.equal(0);
   });
 
-  it("Should verify batch burning tokens gives correct ETH rewards", async function () {
-    // Fund the contract with 1 ETH
-    await owner.sendTransaction({
-      to: await lingolinCreditNFT.getAddress(),
-      value: hre.ethers.parseEther("1.0")
-    });
-
+  it("Should verify batch burning tokens gives correct token rewards", async function () {
     // Mint multiple tokens to the user
     await lingolinCreditNFT.connect(owner).mintBatch(user.address, 3);
     expect(await lingolinCreditNFT.balanceOf(user.address)).to.equal(3);
 
-    // Get user's balance before burning
-    const userBalanceBefore = await hre.ethers.provider.getBalance(user.address);
+    // Get user's token balance before burning
+    const userBalanceBefore = await mockToken.balanceOf(user.address);
 
     // Burn multiple tokens
     const tokenIds = [0, 1, 2];
-    const burnTx = await lingolinCreditNFT.connect(user).burnBatch(tokenIds);
-    const receipt = await burnTx.wait();
-    const gasCost = receipt!.gasUsed * receipt!.gasPrice;
+    await lingolinCreditNFT.connect(user).burnBatch(tokenIds);
 
     // Get user's balance after burning
-    const userBalanceAfter = await hre.ethers.provider.getBalance(user.address);
+    const userBalanceAfter = await mockToken.balanceOf(user.address);
 
-    // Verify user received the correct reward (10000 gwei * 3 tokens)
-    const expectedReward = hre.ethers.parseUnits("30000", "gwei"); // 10000 gwei * 3
-    expect(userBalanceAfter - userBalanceBefore + gasCost).to.equal(expectedReward);
+    // Verify user received the correct reward (rewardPerBurn * 3 tokens)
+    const expectedReward = rewardPerBurn * BigInt(3);
+    expect(userBalanceAfter - userBalanceBefore).to.equal(expectedReward);
 
     // Verify all tokens are burned
     expect(await lingolinCreditNFT.balanceOf(user.address)).to.equal(0);
   });
 
-  it("Should not allow burning when contract has insufficient balance", async function () {
-    // Mint a token to the user without funding the contract
+  it("Should not allow burning when contract has insufficient token balance", async function () {
+    // Mint a token to the user
     await lingolinCreditNFT.connect(owner).mintNFT(user.address);
     const tokenId = 0;
 
-    // Attempt to burn should fail due to insufficient contract balance
+    // Withdraw all tokens from the NFT contract
+    const contractBalance = await mockToken.balanceOf(await lingolinCreditNFT.getAddress());
+    await lingolinCreditNFT.connect(owner).withdrawRewardTokens();
+
+    // Attempt to burn should fail due to insufficient token balance
     await expect(
       lingolinCreditNFT.connect(user).burn(tokenId)
-    ).to.be.revertedWithCustomError(lingolinCreditNFT, "LingolinCreditNFT__InsufficientContractBalance");
+    ).to.be.revertedWithCustomError(lingolinCreditNFT, "LingolinCreditNFT__InsufficientTokenBalance");
 
     // Verify token still exists
     expect(await lingolinCreditNFT.balanceOf(user.address)).to.equal(1);
