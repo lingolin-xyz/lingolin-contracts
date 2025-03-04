@@ -10,7 +10,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 contract LingolinCreditNFT is ERC721A, Ownable {
     using Strings for uint256;
 
-    string public metadataURI;
+    string private _defaultMetadataURI;
     IERC20 public rewardToken;
     uint256 public rewardPerBurn;
     
@@ -23,14 +23,14 @@ contract LingolinCreditNFT is ERC721A, Ownable {
     error LingolinCreditNFT__InsufficientTokenBalance();
 
     constructor(
-        string memory _metadataURI,
+        string memory defaultMetadataURI,
         address _rewardToken,
         uint256 _rewardPerBurn
     ) 
         ERC721A("LingolinCreditNFT", "LCN") 
         Ownable(msg.sender) 
     {
-        metadataURI = _metadataURI;
+        _defaultMetadataURI = defaultMetadataURI;
         rewardToken = IERC20(_rewardToken);
         rewardPerBurn = _rewardPerBurn;
     }
@@ -55,7 +55,7 @@ contract LingolinCreditNFT is ERC721A, Ownable {
         
         // If there's no individual URI, return the default one
         if (bytes(_tokenURI).length == 0) {
-            return metadataURI;
+            return _defaultMetadataURI;
         }
         
         return _tokenURI;
@@ -69,10 +69,6 @@ contract LingolinCreditNFT is ERC721A, Ownable {
     function setTokenURI(uint256 tokenId, string memory _tokenURI) external onlyOwner {
         if (!_exists(tokenId)) revert URIQueryForNonexistentToken();
         _tokenURIs[tokenId] = _tokenURI;
-    }
-
-    function updateMetadataURI(string memory _metadataURI) external onlyOwner {
-        metadataURI = _metadataURI;
     }
 
     /**
