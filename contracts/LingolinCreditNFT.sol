@@ -163,6 +163,42 @@ contract LingolinCreditNFT is ERC721A, Ownable {
         rewardToken = IERC20(_rewardToken);
     }
 
+    /**
+     * @dev Returns an array of token IDs owned by a specific address
+     * @param owner The address to query
+     * @return A uint256 array with all token IDs owned by the address
+     */
+    function tokensOfOwner(address owner) external view returns (uint256[] memory) {
+        uint256 ownerTokenCount = balanceOf(owner);
+        uint256[] memory tokenIds = new uint256[](ownerTokenCount);
+        
+        for (uint256 i = 0; i < ownerTokenCount; i++) {
+            tokenIds[i] = tokenOfOwnerByIndex(owner, i);
+        }
+        
+        return tokenIds;
+    }
+    
+    /**
+     * @dev Returns a token ID owned by `owner` at a given `index` of its token list
+     * @param owner The address to query
+     * @param index The index to query
+     * @return The token ID
+     */
+    function tokenOfOwnerByIndex(address owner, uint256 index) public view returns (uint256) {
+        require(index < balanceOf(owner), "ERC721A: owner index out of bounds");
+        
+        uint256 count;
+        for (uint256 i = _startTokenId(); i < _nextTokenId(); i++) {
+            if (ownerOf(i) == owner) {
+                if (count == index) return i;
+                count++;
+            }
+        }
+        
+        revert("ERC721A: unable to get token of owner by index");
+    }
+
     // Allow contract to receive ETH
     receive() external payable {}
     fallback() external payable {}
