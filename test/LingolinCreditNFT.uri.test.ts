@@ -12,13 +12,15 @@ describe("LingolinCreditNFT - URI Management", function () {
         
         const defaultURI = "https://api.lingolin.com/metadata/default";
         const rewardPerBurn = ethers.parseEther("10"); // 10 tokens per burn
+        const mintingCost = 1000000n; // 1 * 10^6 tokens
         
         // Deploy LingolinCreditNFT
         const LingolinCreditNFTFactory = await ethers.getContractFactory("LingolinCreditNFT");
         const nft = await LingolinCreditNFTFactory.deploy(
             defaultURI,
             await mockToken.getAddress(),
-            rewardPerBurn
+            rewardPerBurn,
+            mintingCost
         );
         
         return { nft, mockToken, owner, user1, defaultURI };

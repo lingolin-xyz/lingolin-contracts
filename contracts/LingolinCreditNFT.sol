@@ -13,6 +13,7 @@ contract LingolinCreditNFT is ERC721A, Ownable {
     string private _defaultMetadataURI;
     IERC20 public rewardToken;
     uint256 public rewardPerBurn;
+    uint256 public mintingCost;
     
     // Mapping for individual token URIs
     mapping(uint256 => string) private _tokenURIs;
@@ -25,7 +26,8 @@ contract LingolinCreditNFT is ERC721A, Ownable {
     constructor(
         string memory defaultMetadataURI,
         address _rewardToken,
-        uint256 _rewardPerBurn
+        uint256 _rewardPerBurn,
+        uint256 _mintingCost
     ) 
         ERC721A("LingolinCreditNFT", "LCN") 
         Ownable(msg.sender) 
@@ -33,6 +35,7 @@ contract LingolinCreditNFT is ERC721A, Ownable {
         _defaultMetadataURI = defaultMetadataURI;
         rewardToken = IERC20(_rewardToken);
         rewardPerBurn = _rewardPerBurn;
+        mintingCost = _mintingCost;
     }
 
     function mintNFT(address recipient) external onlyOwner {
@@ -202,4 +205,16 @@ contract LingolinCreditNFT is ERC721A, Ownable {
     // Allow contract to receive ETH
     receive() external payable {}
     fallback() external payable {}
+
+    // Add this new function to allow minting with ERC20 token payment
+    function mintNFTWithToken() external {
+        // Check if the sender has sent the required amount of tokens
+        require(rewardToken.balanceOf(msg.sender) >= mintingCost, "Insufficient token balance to mint");
+
+        // Transfer the required amount of tokens from the sender to the contract
+        require(rewardToken.transferFrom(msg.sender, address(this), mintingCost), "Token transfer failed");
+
+        // Mint the NFT to the sender
+        _mint(msg.sender, 1);
+    }
 }

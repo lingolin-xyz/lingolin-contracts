@@ -15,7 +15,8 @@ const REWARD_TOKEN_ADDRESS = {
 async function main() {
   // Define base URI for the NFT metadata
   const baseURI = "https://www.lingolin.xyz/nft/metadata.json"
-  const rewardPerBurn = ethers.parseEther("0.01") // 10 tokens per burn
+  const rewardPerBurn = ethers.parseUnits("0.01", 6)
+  const mintingCost = ethers.parseUnits("0.01", 6)
 
   let rewardTokenAddress: string
 
@@ -43,7 +44,8 @@ async function main() {
   const lingolinCreditNFT = await LingolinCreditNFT.deploy(
     baseURI,
     rewardTokenAddress,
-    rewardPerBurn
+    rewardPerBurn,
+    mintingCost
   )
 
   console.log("🔄 Waiting for contract deployment confirmation...")
@@ -66,7 +68,7 @@ async function main() {
     try {
       await run("verify:verify", {
         address: contractAddress,
-        constructorArguments: [baseURI, rewardTokenAddress, rewardPerBurn],
+        constructorArguments: [baseURI, rewardTokenAddress, rewardPerBurn, mintingCost],
       })
       console.log("✅ Contract verified successfully")
     } catch (error: any) {

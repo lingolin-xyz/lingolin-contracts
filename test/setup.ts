@@ -11,12 +11,14 @@ export interface TestContext {
   user2: SignerWithAddress;
   sampleMetadataURI: string;
   rewardPerBurn: bigint;
+  mintingCost: bigint;
 }
 
 export async function setupTest(): Promise<TestContext> {
   const [owner, user, user2] = await hre.ethers.getSigners();
   const sampleMetadataURI = "https://example.com/metadata/";
   const rewardPerBurn = hre.ethers.parseUnits("10.0", "ether");
+  const mintingCost = 1000000n; // 1 * 10^6 tokens
 
   // Deploy mock ERC20 token
   const mockToken = await hre.ethers.deployContract("MockERC20", ["Mock Token", "MTK"]);
@@ -26,7 +28,8 @@ export async function setupTest(): Promise<TestContext> {
   const lingolinCreditNFT = await hre.ethers.deployContract("LingolinCreditNFT", [
     sampleMetadataURI,
     await mockToken.getAddress(),
-    rewardPerBurn
+    rewardPerBurn,
+    mintingCost
   ]);
   await lingolinCreditNFT.waitForDeployment();
 
@@ -40,7 +43,8 @@ export async function setupTest(): Promise<TestContext> {
     user,
     user2,
     sampleMetadataURI,
-    rewardPerBurn
+    rewardPerBurn,
+    mintingCost
   };
 }
 
