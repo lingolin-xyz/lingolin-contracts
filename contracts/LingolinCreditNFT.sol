@@ -205,16 +205,18 @@ contract LingolinCreditNFT is ERC721A, Ownable {
     // Allow contract to receive ETH
     receive() external payable {}
     fallback() external payable {}
-
+    
     // Add this new function to allow minting with ERC20 token payment
-    function mintNFTWithToken() external {
+    function mintNFTWithToken(uint256 quantity) external {
         // Check if the sender has sent the required amount of tokens
-        require(rewardToken.balanceOf(msg.sender) >= mintingCost, "Insufficient token balance to mint");
+        uint256 totalCost = mintingCost * quantity;
+        require(rewardToken.balanceOf(msg.sender) >= totalCost, "Insufficient token balance to mint");
 
         // Transfer the required amount of tokens from the sender to the contract
-        require(rewardToken.transferFrom(msg.sender, address(this), mintingCost), "Token transfer failed");
+        // NOTA: El usuario debe aprobar primero esta transferencia con rewardToken.approve()
+        require(rewardToken.transferFrom(msg.sender, address(this), totalCost), "Token transfer failed");
 
-        // Mint the NFT to the sender
-        _mint(msg.sender, 1);
+        // Mint the NFTs to the sender
+        _mint(msg.sender, quantity);
     }
 }

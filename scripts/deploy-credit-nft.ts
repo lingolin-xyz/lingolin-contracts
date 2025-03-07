@@ -15,8 +15,8 @@ const REWARD_TOKEN_ADDRESS = {
 async function main() {
   // Define base URI for the NFT metadata
   const baseURI = "https://www.lingolin.xyz/nft/metadata.json"
-  const rewardPerBurn = ethers.parseUnits("0.01", 6)
-  const mintingCost = ethers.parseUnits("0.01", 6)
+  const rewardPerBurn = ethers.parseUnits("0.0001", 6)
+  const mintingCost = ethers.parseUnits("0.0002", 6)
 
   let rewardTokenAddress: string
 
@@ -30,9 +30,14 @@ async function main() {
     console.log(`✅ Mock ERC20 token deployed to: ${rewardTokenAddress}`)
   } else {
     // Use predefined addresses for production networks
-    rewardTokenAddress = REWARD_TOKEN_ADDRESS[network.config.chainId as keyof typeof REWARD_TOKEN_ADDRESS]
+    rewardTokenAddress =
+      REWARD_TOKEN_ADDRESS[
+        network.config.chainId as keyof typeof REWARD_TOKEN_ADDRESS
+      ]
     if (!rewardTokenAddress) {
-      throw new Error(`No reward token address configured for chain ID ${network.config.chainId}`)
+      throw new Error(
+        `No reward token address configured for chain ID ${network.config.chainId}`
+      )
     }
   }
 
@@ -68,7 +73,12 @@ async function main() {
     try {
       await run("verify:verify", {
         address: contractAddress,
-        constructorArguments: [baseURI, rewardTokenAddress, rewardPerBurn, mintingCost],
+        constructorArguments: [
+          baseURI,
+          rewardTokenAddress,
+          rewardPerBurn,
+          mintingCost,
+        ],
       })
       console.log("✅ Contract verified successfully")
     } catch (error: any) {
@@ -84,23 +94,23 @@ async function main() {
   }
 
   // If on local network, mint some tokens to the NFT contract
-  if (!network.config.chainId || network.config.chainId === 31337) {
-    console.log("🎨 Minting reward tokens to the NFT contract...")
-    const MockERC20Factory = await ethers.getContractFactory("MockERC20")
-    const mockToken = (await MockERC20Factory.attach(rewardTokenAddress)) as MockERC20
-    await mockToken.mint(contractAddress, ethers.parseEther("1000000")) // Mint 1M tokens
-    console.log("✅ Reward tokens minted successfully")
-  }
+  // if (!network.config.chainId || network.config.chainId === 31337) {
+  //   console.log("🎨 Minting reward tokens to the NFT contract...")
+  //   const MockERC20Factory = await ethers.getContractFactory("MockERC20")
+  //   const mockToken = (await MockERC20Factory.attach(rewardTokenAddress)) as MockERC20
+  //   await mockToken.mint(contractAddress, ethers.parseEther("1000000")) // Mint 1M tokens
+  //   console.log("✅ Reward tokens minted successfully")
+  // }
 
   // Get the deployer's address
-  const [deployer] = await ethers.getSigners()
+  // const [deployer] = await ethers.getSigners()
 
-  console.log("🎨 Minting a test NFT to the deployer's address...")
-  // Mint an NFT to the deployer
-  const mintTx = await lingolinCreditNFT.mintNFT(deployer.address)
-  await mintTx.wait()
+  // console.log("🎨 Minting a test NFT to the deployer's address...")
+  // // Mint an NFT to the deployer
+  // const mintTx = await lingolinCreditNFT.mintNFT(deployer.address)
+  // await mintTx.wait()
 
-  console.log("✅ NFT minted successfully")
+  // console.log("✅ NFT minted successfully")
 }
 
 // Run the script with proper error handling
