@@ -4,12 +4,10 @@ import { MockERC20 } from "../typechain-types"
 
 // Get Monad testnet chain ID from config or use default value
 const MONAD_TESTNET_CHAIN_ID = config.networks?.monad_testnet?.chainId ?? 10143
-const BASE_SEPOLIA_CHAIN_ID = config.networks?.base_sepolia?.chainId ?? 84532
 
 // Fixed addresses for production networks
 const REWARD_TOKEN_ADDRESS = {
   [MONAD_TESTNET_CHAIN_ID]: "0xf817257fed379853cDe0fa4F97AB987181B1E5Ea",
-  [BASE_SEPOLIA_CHAIN_ID]: "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
 }
 
 async function main() {
