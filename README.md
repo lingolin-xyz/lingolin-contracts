@@ -103,7 +103,6 @@ npm install
 
 ```env
 PRIVATE_KEY=your_private_key_here
-MONAD_TESTNET_URL=your_monad_rpc_url
 ```
 
 ### Compilation
@@ -180,7 +179,7 @@ function withdrawRewardTokens(address _token) external onlyOwner
 function withdrawETH() external onlyOwner
 ```
 
-## License
+### Contact us
 
-This project is licensed under the MIT License - see the LICENSE file for
-details.
+For feedback, possible collabs, or any question, please contact us at
+hellolingolin@gmail.com
